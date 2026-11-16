@@ -3,8 +3,9 @@ package belajar_golang_context
 import (
 	"context"
 	"fmt"
+	"sync"
 	"testing"
-
+	"time"
 )
 
 // Pengenalan Context
@@ -69,6 +70,7 @@ func TestMembuatContext(t *testing.T) {
 // Saat kita menambah value ke context, secara otomatis akan tercipta child context baru, artinya original context nya tidak akan berubah sama sekali
 // Untuk membuat menambahkan value ke context, kita bisa menggunakan function context.WithValue(parent, key, value)
 // Kita bisa memngambil context value milik sendiri dan parent namun tak bisa mengambil value milik child
+// Menggunakan method Value(key)
 func TestContextWithValue(t *testing.T) {
 	contextA := context.Background()
 
@@ -86,4 +88,45 @@ func TestContextWithValue(t *testing.T) {
 	fmt.Println(contextD)
 	fmt.Println(contextE)
 	fmt.Println(contextF)
+
+	fmt.Println(contextD.Value("Faiz"))
+}
+
+// Context With Cancel
+// Selain menambahkan value ke context, kita juga bisa menambahkan sinyal cancel ke context
+// Kapan sinyal cancel diperlukan dalam contextt?
+// Biasanya ketika kita butuh menjalankan proses lain, dan kita ingin bisa memberi sinyal cancel ke proses tersebut
+// Biasanya proses ini berupa goroutine yang berbeda sehingga dengan mudah jika kita ingin membatalkan eksekusi goroutine, kita bisa mengirim sinyal cancel ke context nya
+// Namun ingat, goroutine yang menggunakan context, tetap harus melakukan pengecekan terhadap contextnya, jika tidak, tidak ada gunanya
+// Untuk membuat context dengan cancel kita bisa menggunakan function di package context
+// context.WithCancel(parent)
+
+func TestWithCancel(t *testing.T) {
+	parent := context.Background()
+	var wg sync.WaitGroup
+
+	deadline := time.Now().Add(time.Second * 5)
+	konteks, cancel := context.WithDeadline(parent, deadline)
+	defer cancel()
+
+	wg.Add(1)
+	go func(ctx context.Context) {
+		defer wg.Done()
+		i := 0
+		for {
+			i++
+			select {
+			case <-ctx.Done():
+				fmt.Println("Perulangan selesai:", ctx.Err()) // ctx.Err() akan bernilai context.DeadlineExceeded
+				return
+			default:
+				fmt.Println("Perulangan ke: ", i)
+				time.Sleep(100 * time.Millisecond)
+			}
+		}
+	}(konteks)
+
+	wg.Wait()
+	fmt.Println("Program selesai")
+
 }
